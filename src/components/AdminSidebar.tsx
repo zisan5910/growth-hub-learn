@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: "/admin/users", icon: Users, label: "Users" },
   { to: "/admin/courses", icon: BookOpen, label: "Courses" },
   { to: "/admin/videos", icon: Video, label: "Videos" },
+  { to: "/admin/exams", icon: ClipboardList, label: "Exams" },
   { to: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 

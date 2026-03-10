@@ -60,6 +60,7 @@ export function UserSidebar({ open, onClose }: Props) {
         <nav className="p-2 flex-1 overflow-y-auto pb-20">
           <SidebarLink to="/home" icon={Home} label="Home" onClick={onClose} />
           <SidebarLink to="/my-courses" icon={BookOpen} label="My Courses" onClick={onClose} />
+          <SidebarLink to="/exams" icon={ClipboardList} label="Exams" onClick={onClose} />
           <SidebarLink to="/profile" icon={User} label="Profile" onClick={onClose} />
 
           {activeCourse && userDoc?.status === "approved" && (

@@ -30,6 +30,7 @@ export function DesktopUserSidebar() {
       <nav className="p-2 flex flex-col gap-0.5">
         <SidebarLink to="/home" icon={Home} label="Home" active={isActive("/home") || isActive("/")} />
         <SidebarLink to="/my-courses" icon={BookOpen} label="My Courses" active={isActive("/my-courses")} />
+        <SidebarLink to="/exams" icon={ClipboardList} label="Exams" active={isActive("/exams")} />
         <SidebarLink to="/profile" icon={User} label="Profile" active={isActive("/profile")} />
 
         {/* All Materials - shows course subjects + allMaterialsLink PDF */}
