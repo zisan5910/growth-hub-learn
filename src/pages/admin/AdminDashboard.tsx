@@ -3,7 +3,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { Link } from "react-router-dom";
-import { Users, Clock, BookOpen, Video, Youtube, HardDrive } from "lucide-react";
+import { Users, Clock, BookOpen, Video, Youtube, HardDrive, FileText } from "lucide-react";
 import { AdminDashboardSkeleton } from "@/components/skeletons/AdminSkeleton";
 
 export default function AdminDashboard() {
