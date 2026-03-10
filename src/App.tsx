@@ -49,6 +49,8 @@ const App = () => (
                 <Route path="/my-courses/:courseId" element={<CourseContentPage />} />
                 <Route path="/video/:videoId" element={<VideoPlayerPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/exams" element={<ExamListPage />} />
+                <Route path="/exams/:examId" element={<ExamTakePage />} />
                 <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
                 <Route path="/admin/users" element={<ProtectedAdminRoute><AdminUsersPage /></ProtectedAdminRoute>} />
                 <Route path="/admin/courses" element={<ProtectedAdminRoute><AdminCoursesPage /></ProtectedAdminRoute>} />
