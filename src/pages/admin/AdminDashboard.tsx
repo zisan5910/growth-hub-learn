@@ -8,7 +8,7 @@ import { AdminDashboardSkeleton } from "@/components/skeletons/AdminSkeleton";
 
 export default function AdminDashboard() {
   const settings = useAppSettings();
-  const [stats, setStats] = useState({ users: 0, pending: 0, courses: 0, videos: 0 });
+  const [stats, setStats] = useState({ users: 0, pending: 0, courses: 0, videos: 0, exams: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
