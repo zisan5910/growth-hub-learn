@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { X, Home, BookOpen, User, FileText, MessageCircle, Link as LinkIcon, Share2, Download, Sun, Moon, ExternalLink, FolderOpen } from "lucide-react";
+import { X, Home, BookOpen, User, FileText, MessageCircle, Link as LinkIcon, Share2, Download, Sun, Moon, ExternalLink, FolderOpen, ClipboardList } from "lucide-react";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/use-theme";
