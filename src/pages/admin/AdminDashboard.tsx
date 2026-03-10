@@ -45,6 +45,7 @@ export default function AdminDashboard() {
     { label: "Pending", value: stats.pending, icon: Clock, to: "/admin/users?status=pending" },
     { label: "Courses", value: stats.courses, icon: BookOpen, to: "/admin/courses" },
     { label: "Videos", value: stats.videos, icon: Video, to: "/admin/videos" },
+    { label: "Exams", value: stats.exams, icon: FileText, to: "/admin/exams" },
   ];
 
   if (loading) return <AdminDashboardSkeleton />;
