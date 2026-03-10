@@ -3,26 +3,28 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { Link } from "react-router-dom";
-import { Users, Clock, BookOpen, Video, Youtube, HardDrive } from "lucide-react";
+import { Users, Clock, BookOpen, Video, Youtube, HardDrive, FileText } from "lucide-react";
 import { AdminDashboardSkeleton } from "@/components/skeletons/AdminSkeleton";
 
 export default function AdminDashboard() {
   const settings = useAppSettings();
-  const [stats, setStats] = useState({ users: 0, pending: 0, courses: 0, videos: 0 });
+  const [stats, setStats] = useState({ users: 0, pending: 0, courses: 0, videos: 0, exams: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetch = async () => {
-      const [usersSnap, pendingSnap, coursesSnap, videosSnap, enrollRequestsSnap] = await Promise.all([
+      const { examDb } = await import("@/lib/examFirebase");
+      const { collection: col2, getDocs: gd2 } = await import("firebase/firestore");
+      const [usersSnap, pendingSnap, coursesSnap, videosSnap, enrollRequestsSnap, examsSnap] = await Promise.all([
         getDocs(query(collection(db, "users"), where("role", "==", "student"))),
         getDocs(collection(db, "users")),
         getDocs(collection(db, "courses")),
         getDocs(collection(db, "videos")),
         getDocs(query(collection(db, "enrollRequests"), where("status", "==", "pending"))),
+        gd2(col2(examDb, "exams")),
       ]);
       const allUsers = pendingSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
       const pendingUsers = allUsers.filter((u: any) => u.status === "pending" && u.role === "student");
-      // Also count approved users who have pending enrollment requests
       const pendingRequestUserIds = new Set(enrollRequestsSnap.docs.map(d => d.data().userId));
       const approvedWithPending = allUsers.filter((u: any) => u.role === "student" && u.status !== "pending" && pendingRequestUserIds.has(u.id));
       const pendingCount = pendingUsers.length + approvedWithPending.length;
@@ -31,6 +33,7 @@ export default function AdminDashboard() {
         pending: pendingCount,
         courses: coursesSnap.size,
         videos: videosSnap.size,
+        exams: examsSnap.size,
       });
       setLoading(false);
     };
@@ -42,6 +45,7 @@ export default function AdminDashboard() {
     { label: "Pending", value: stats.pending, icon: Clock, to: "/admin/users?status=pending" },
     { label: "Courses", value: stats.courses, icon: BookOpen, to: "/admin/courses" },
     { label: "Videos", value: stats.videos, icon: Video, to: "/admin/videos" },
+    { label: "Exams", value: stats.exams, icon: FileText, to: "/admin/exams" },
   ];
 
   if (loading) return <AdminDashboardSkeleton />;

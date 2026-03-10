@@ -20,6 +20,8 @@ export interface Exam {
   type: ExamType;
   duration: number; // minutes
   totalMarks: number;
+  negativeMark: number; // marks deducted per wrong answer
+  passMark: number; // minimum marks to pass
   startTime: Timestamp;
   endTime: Timestamp;
   questions: ExamQuestion[];
@@ -39,6 +41,7 @@ export interface ExamSubmission {
   correctCount: number;
   wrongCount: number;
   submittedAt: Timestamp;
+  passed?: boolean;
 }
 
 export interface ExamAnswer {

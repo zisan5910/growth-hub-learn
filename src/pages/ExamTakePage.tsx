@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Exam, ExamAnswer, ExamSubmission } from "@/types/exam";
 import { uploadToImgBB } from "@/lib/imgbb";
 import { toast } from "sonner";
-import { Camera, Clock, ChevronLeft, ChevronRight, Send, Trophy, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
+import { Camera, Clock, ChevronLeft, ChevronRight, Send, Trophy, CheckCircle, XCircle, ArrowLeft, Award, TrendingDown } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -30,6 +30,7 @@ export default function ExamTakePage() {
   const [rankings, setRankings] = useState<ExamSubmission[]>([]);
   const [showRankings, setShowRankings] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [myRank, setMyRank] = useState<number | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -40,7 +41,6 @@ export default function ExamTakePage() {
       if (snap.exists()) {
         setExam({ id: snap.id, ...snap.data() } as Exam);
       }
-      // Check existing submission
       if (user) {
         const subSnap = await getDocs(query(collection(examDb, "submissions"), where("examId", "==", examId), where("userId", "==", user.uid)));
         if (!subSnap.empty) {
@@ -55,7 +55,6 @@ export default function ExamTakePage() {
     fetchExam();
   }, [examId, user]);
 
-  // Timer
   useEffect(() => {
     if (!started || submitted || timeLeft <= 0) return;
     timerRef.current = setInterval(() => {
@@ -85,7 +84,6 @@ export default function ExamTakePage() {
     if (!exam) return;
     setTimeLeft(exam.duration * 60);
     setStarted(true);
-    // Initialize answers
     const initial: Record<string, ExamAnswer> = {};
     exam.questions.forEach(q => {
       initial[q.id] = { questionId: q.id, marks: q.marks };
@@ -121,6 +119,8 @@ export default function ExamTakePage() {
     if (!exam || !user || !userDoc || submitting) return;
     setSubmitting(true);
 
+    const negativeMark = exam.negativeMark || 0;
+
     const answersList: ExamAnswer[] = exam.questions.map(q => {
       const ans = answers[q.id] || { questionId: q.id, marks: q.marks };
       if (exam.type === "mcq") {
@@ -132,7 +132,10 @@ export default function ExamTakePage() {
 
     const correctCount = answersList.filter(a => a.isCorrect).length;
     const wrongCount = exam.type === "mcq" ? answersList.filter(a => a.selectedOption !== undefined && !a.isCorrect).length : 0;
-    const obtainedMarks = exam.type === "mcq" ? answersList.filter(a => a.isCorrect).reduce((s, a) => s + a.marks, 0) : 0;
+    const correctMarks = answersList.filter(a => a.isCorrect).reduce((s, a) => s + a.marks, 0);
+    const negativeTotal = wrongCount * negativeMark;
+    const obtainedMarks = Math.max(0, correctMarks - negativeTotal);
+    const passed = obtainedMarks >= (exam.passMark || 0);
 
     const submission: Omit<ExamSubmission, "id"> = {
       examId: exam.id,
@@ -146,6 +149,7 @@ export default function ExamTakePage() {
       correctCount,
       wrongCount,
       submittedAt: Timestamp.now(),
+      passed,
     };
 
     try {
@@ -163,10 +167,12 @@ export default function ExamTakePage() {
   }, [exam, user, userDoc, answers, submitting]);
 
   const loadRankings = async () => {
-    if (!exam) return;
+    if (!exam || !user) return;
     const snap = await getDocs(query(collection(examDb, "submissions"), where("examId", "==", exam.id)));
     const subs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ExamSubmission)).sort((a, b) => b.obtainedMarks - a.obtainedMarks);
     setRankings(subs);
+    const rank = subs.findIndex(s => s.userId === user.uid);
+    setMyRank(rank >= 0 ? rank + 1 : null);
     setShowRankings(true);
   };
 
@@ -175,20 +181,38 @@ export default function ExamTakePage() {
 
   // Result view
   if (submitted && result) {
+    const passed = result.obtainedMarks >= (exam.passMark || 0);
+    const negativeTotal = (result.wrongCount || 0) * (exam.negativeMark || 0);
+
     return (
       <div className="p-4 max-w-2xl mx-auto animate-fade-in">
         <button onClick={() => navigate("/exams")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="h-4 w-4" /> Back to Exams
         </button>
 
-        <div className="bg-card border border-border rounded-lg p-6 text-center">
+        <div className="bg-card border border-border rounded-xl p-6 text-center">
           <h2 className="text-lg font-semibold text-foreground">{exam.title}</h2>
           <p className="text-sm text-muted-foreground mb-4">Your Result</p>
           <div className="text-4xl font-bold text-foreground">{result.obtainedMarks}/{result.totalMarks}</div>
+          
+          {/* Pass/Fail badge */}
+          <div className="mt-3">
+            <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold ${passed ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-destructive"}`}>
+              {passed ? <><Award className="h-4 w-4" /> Passed</> : <><TrendingDown className="h-4 w-4" /> Failed</>}
+            </span>
+          </div>
+
           <div className="flex items-center justify-center gap-4 mt-3 text-sm">
             <span className="flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle className="h-4 w-4" /> {result.correctCount} Correct</span>
             <span className="flex items-center gap-1 text-destructive"><XCircle className="h-4 w-4" /> {result.wrongCount} Wrong</span>
           </div>
+
+          {(exam.negativeMark || 0) > 0 && negativeTotal > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">Negative marks deducted: -{negativeTotal}</p>
+          )}
+          {exam.passMark > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">Pass mark: {exam.passMark}</p>
+          )}
         </div>
 
         {/* Answer review */}
@@ -198,9 +222,9 @@ export default function ExamTakePage() {
             {exam.questions.map((q, idx) => {
               const ans = result.answers.find(a => a.questionId === q.id);
               return (
-                <div key={q.id} className="bg-card border border-border rounded-lg p-3">
+                <div key={q.id} className="bg-card border border-border rounded-xl p-3">
                   <p className="text-sm font-medium text-foreground">Q{idx + 1}. {q.questionText}</p>
-                  {q.questionImage && <img src={q.questionImage} alt="" className="h-24 rounded-md object-contain mt-2" />}
+                  {q.questionImage && <img src={q.questionImage} alt="" className="h-24 rounded-lg object-contain mt-2" />}
                   <div className="mt-2 space-y-1">
                     {q.options?.map((opt, oIdx) => {
                       const isCorrect = oIdx === q.correctAnswer;
@@ -209,7 +233,7 @@ export default function ExamTakePage() {
                       if (isCorrect) bg = "bg-green-500/10";
                       if (isSelected && !isCorrect) bg = "bg-red-500/10";
                       return (
-                        <div key={oIdx} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${bg}`}>
+                        <div key={oIdx} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${bg}`}>
                           {isCorrect && <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />}
                           {isSelected && !isCorrect && <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
                           {!isCorrect && !isSelected && <span className="w-3.5" />}
@@ -229,25 +253,39 @@ export default function ExamTakePage() {
         {examEnded && (
           <div className="mt-6">
             {!showRankings ? (
-              <button onClick={loadRankings} className="w-full py-3 bg-primary text-primary-foreground rounded-md text-sm font-medium flex items-center justify-center gap-2">
+              <button onClick={loadRankings} className="w-full py-3 bg-primary text-primary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2">
                 <Trophy className="h-4 w-4" /> View Rankings
               </button>
             ) : (
               <div>
                 <h3 className="font-medium text-foreground mb-3 flex items-center gap-2"><Trophy className="h-4 w-4" /> Rankings</h3>
+                {myRank && (
+                  <div className="bg-accent border border-border rounded-xl p-3 mb-3 text-center">
+                    <p className="text-sm text-muted-foreground">Your Rank</p>
+                    <p className="text-2xl font-bold text-foreground">#{myRank} <span className="text-sm font-normal text-muted-foreground">out of {rankings.length}</span></p>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  {rankings.map((sub, idx) => (
-                    <div key={sub.id} className={`flex items-center justify-between p-3 rounded-lg border ${sub.userId === user?.uid ? "border-primary bg-accent" : "border-border bg-card"}`}>
-                      <div className="flex items-center gap-3">
-                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${idx < 3 ? "bg-primary text-primary-foreground" : "bg-accent text-foreground"}`}>{idx + 1}</span>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{sub.userName}</p>
-                          <p className="text-xs text-muted-foreground">{sub.userEmail}</p>
+                  {rankings.map((sub, idx) => {
+                    const subPassed = sub.obtainedMarks >= (exam.passMark || 0);
+                    return (
+                      <div key={sub.id} className={`flex items-center justify-between p-3 rounded-xl border ${sub.userId === user?.uid ? "border-primary bg-accent" : "border-border bg-card"}`}>
+                        <div className="flex items-center gap-3">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${idx < 3 ? "bg-primary text-primary-foreground" : "bg-accent text-foreground"}`}>{idx + 1}</span>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{sub.userName}</p>
+                            <p className="text-xs text-muted-foreground">{sub.userEmail}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-foreground">{sub.obtainedMarks}/{sub.totalMarks}</p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${subPassed ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-destructive"}`}>
+                            {subPassed ? "Pass" : "Fail"}
+                          </span>
                         </div>
                       </div>
-                      <p className="text-sm font-semibold text-foreground">{sub.obtainedMarks}/{sub.totalMarks}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -265,7 +303,7 @@ export default function ExamTakePage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
 
-        <div className="bg-card border border-border rounded-lg p-6 text-center">
+        <div className="bg-card border border-border rounded-xl p-6 text-center">
           <h2 className="text-lg font-semibold text-foreground">{exam.title}</h2>
           <p className="text-sm text-muted-foreground mt-1">{exam.courseName}</p>
           <div className="mt-4 space-y-2 text-sm text-muted-foreground">
@@ -273,6 +311,8 @@ export default function ExamTakePage() {
             <p>Questions: <span className="text-foreground font-medium">{exam.questions.length}</span></p>
             <p>Total Marks: <span className="text-foreground font-medium">{exam.totalMarks}</span></p>
             <p>Duration: <span className="text-foreground font-medium">{exam.duration} minutes</span></p>
+            {(exam.negativeMark || 0) > 0 && <p>Negative Mark: <span className="text-foreground font-medium">-{exam.negativeMark} per wrong answer</span></p>}
+            {(exam.passMark || 0) > 0 && <p>Pass Mark: <span className="text-foreground font-medium">{exam.passMark}</span></p>}
             <p>Start: <span className="text-foreground font-medium">{exam.startTime?.toDate?.()?.toLocaleString()}</span></p>
             <p>End: <span className="text-foreground font-medium">{exam.endTime?.toDate?.()?.toLocaleString()}</span></p>
           </div>
@@ -284,7 +324,7 @@ export default function ExamTakePage() {
             <p className="mt-4 text-sm text-destructive">Exam has ended.</p>
           )}
           {examStarted && !examEnded && (
-            <button onClick={startExam} className="mt-6 w-full py-3 bg-primary text-primary-foreground rounded-md font-medium text-sm">
+            <button onClick={startExam} className="mt-6 w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium text-sm">
               Start Exam
             </button>
           )}
@@ -312,17 +352,17 @@ export default function ExamTakePage() {
           const answered = answers[q.id]?.selectedOption !== undefined || answers[q.id]?.writtenImageUrl;
           return (
             <button key={q.id} onClick={() => setCurrentQ(idx)}
-              className={`w-8 h-8 rounded-md text-xs font-medium border ${idx === currentQ ? "border-primary bg-primary text-primary-foreground" : answered ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground"}`}
+              className={`w-8 h-8 rounded-lg text-xs font-medium border ${idx === currentQ ? "border-primary bg-primary text-primary-foreground" : answered ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground"}`}
             >{idx + 1}</button>
           );
         })}
       </div>
 
       {/* Question */}
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className="bg-card border border-border rounded-xl p-4">
         <p className="text-sm font-medium text-foreground mb-1">Question {currentQ + 1} <span className="text-muted-foreground">({question.marks} marks)</span></p>
         <p className="text-foreground">{question.questionText}</p>
-        {question.questionImage && <img src={question.questionImage} alt="" className="mt-3 max-h-48 rounded-md object-contain" />}
+        {question.questionImage && <img src={question.questionImage} alt="" className="mt-3 max-h-48 rounded-lg object-contain" />}
 
         {exam.type === "mcq" && question.options && (
           <div className="mt-4 space-y-2">
@@ -330,7 +370,7 @@ export default function ExamTakePage() {
               const selected = answers[question.id]?.selectedOption === oIdx;
               return (
                 <button key={oIdx} onClick={() => selectOption(question.id, oIdx)}
-                  className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-md border text-sm transition-colors ${selected ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-foreground hover:bg-accent"}`}
+                  className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border text-sm transition-colors ${selected ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-foreground hover:bg-accent"}`}
                 >
                   <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs shrink-0 ${selected ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>
                     {String.fromCharCode(65 + oIdx)}
@@ -348,11 +388,11 @@ export default function ExamTakePage() {
             <p className="text-sm text-muted-foreground mb-2">Upload your answer (take a photo):</p>
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={e => handleCameraCapture(question.id, e)} className="hidden" />
             <button onClick={() => cameraRef.current?.click()} disabled={uploadingImage}
-              className="flex items-center gap-2 px-4 py-3 bg-accent border border-border rounded-md text-sm text-foreground w-full justify-center">
+              className="flex items-center gap-2 px-4 py-3 bg-accent border border-border rounded-xl text-sm text-foreground w-full justify-center">
               <Camera className="h-4 w-4" /> {uploadingImage ? "Uploading..." : "Take Photo / Upload Image"}
             </button>
             {answers[question.id]?.writtenImageUrl && (
-              <img src={answers[question.id].writtenImageUrl} alt="Answer" className="mt-3 max-h-48 rounded-md object-contain mx-auto" />
+              <img src={answers[question.id].writtenImageUrl} alt="Answer" className="mt-3 max-h-48 rounded-lg object-contain mx-auto" />
             )}
           </div>
         )}
@@ -361,18 +401,18 @@ export default function ExamTakePage() {
       {/* Navigation */}
       <div className="flex items-center justify-between mt-4">
         <button onClick={() => setCurrentQ(Math.max(0, currentQ - 1))} disabled={currentQ === 0}
-          className="flex items-center gap-1 px-4 py-2 bg-card border border-border rounded-md text-sm text-foreground disabled:opacity-40">
+          className="flex items-center gap-1 px-4 py-2 bg-card border border-border rounded-xl text-sm text-foreground disabled:opacity-40">
           <ChevronLeft className="h-4 w-4" /> Previous
         </button>
 
         {currentQ === exam.questions.length - 1 ? (
           <button onClick={() => setShowConfirm(true)} disabled={submitting}
-            className="flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium disabled:opacity-50">
+            className="flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-50">
             <Send className="h-4 w-4" /> Submit
           </button>
         ) : (
           <button onClick={() => setCurrentQ(Math.min(exam.questions.length - 1, currentQ + 1))}
-            className="flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium">
+            className="flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium">
             Next <ChevronRight className="h-4 w-4" />
           </button>
         )}
