@@ -1,9 +1,9 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { doc, updateDoc, getDoc, addDoc, collection, getDocs, arrayUnion, Timestamp, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { LogOut, KeyRound, FileText, MessageCircle, ExternalLink, PlusCircle, Copy, Check } from "lucide-react";
+import { LogOut, KeyRound, FileText, MessageCircle, ExternalLink, PlusCircle, Copy, Check, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -320,6 +320,9 @@ export default function ProfilePage() {
       )}
 
       <div className="mt-6 space-y-2">
+        <Link to="/exams" className="flex items-center gap-3 w-full p-3 bg-card border border-border rounded-lg text-sm text-foreground hover:bg-accent">
+          <ClipboardList className="h-4 w-4 text-muted-foreground" /> Exams
+        </Link>
         <button onClick={handleResetPassword} className="flex items-center gap-3 w-full p-3 bg-card border border-border rounded-lg text-sm text-foreground">
           <KeyRound className="h-4 w-4 text-muted-foreground" /> Reset Password
         </button>
