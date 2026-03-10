@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { doc, updateDoc, getDoc, addDoc, collection, getDocs, arrayUnion, Timestamp, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { LogOut, KeyRound, FileText, MessageCircle, ExternalLink, PlusCircle, Copy, Check } from "lucide-react";
+import { LogOut, KeyRound, FileText, MessageCircle, ExternalLink, PlusCircle, Copy, Check, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
